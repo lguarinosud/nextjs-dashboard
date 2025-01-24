@@ -1,4 +1,6 @@
-import { sql } from '@vercel/postgres';
+//process.env.DATABASE_URL = process.env.POSTGRES_URL;
+import { db } from "@vercel/postgres";
+import { sql } from '@vercel/postgres'; //this is the original import and it is not working
 import {
   CustomerField,
   CustomersTableType,
@@ -14,12 +16,16 @@ export async function fetchRevenue() {
     // Artificially delay a response for demo purposes.
     // Don't do this in production :)
 
-    // console.log('Fetching revenue data...');
-    // await new Promise((resolve) => setTimeout(resolve, 3000));
+    console.log('Fetching revenue data...');
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    const data = await sql<Revenue>`SELECT * FROM revenue`;
+    // const data = await sql<Revenue>`SELECT * FROM revenue`; this is the original code and it is not working
 
-    // console.log('Data fetch completed after 3 seconds.');
+    const client = await db.connect();
+    const data = await client.sql`SELECT * FROM revenue`; // Here is the correct code, a
+    client.release(); // Important: release the connection! 
+
+    console.log('Data fetch completed after 3 seconds.');
 
     return data.rows;
   } catch (error) {
@@ -30,12 +36,22 @@ export async function fetchRevenue() {
 
 export async function fetchLatestInvoices() {
   try {
-    const data = await sql<LatestInvoiceRaw>`
+    const client = await db.connect();
+    const data = await client.sql`
       SELECT invoices.amount, customers.name, customers.image_url, customers.email, invoices.id
       FROM invoices
       JOIN customers ON invoices.customer_id = customers.id
       ORDER BY invoices.date DESC
       LIMIT 5`;
+    client.release(); // Important: release the connection! 
+
+
+    // const data = await sql<LatestInvoiceRaw>`
+    //   SELECT invoices.amount, customers.name, customers.image_url, customers.email, invoices.id
+    //   FROM invoices
+    //   JOIN customers ON invoices.customer_id = customers.id
+    //   ORDER BY invoices.date DESC
+    //   LIMIT 5`;
 
     const latestInvoices = data.rows.map((invoice) => ({
       ...invoice,
@@ -50,12 +66,17 @@ export async function fetchLatestInvoices() {
 
 export async function fetchCardData() {
   try {
+    const client = await db.connect();
+    //const data = await client.sql`SELECT * FROM revenue`; // Here is the correct code, a
+
+
+
     // You can probably combine these into a single SQL query
     // However, we are intentionally splitting them to demonstrate
     // how to initialize multiple queries in parallel with JS.
-    const invoiceCountPromise = sql`SELECT COUNT(*) FROM invoices`;
-    const customerCountPromise = sql`SELECT COUNT(*) FROM customers`;
-    const invoiceStatusPromise = sql`SELECT
+    const invoiceCountPromise = client.sql`SELECT COUNT(*) FROM invoices`;
+    const customerCountPromise = client.sql`SELECT COUNT(*) FROM customers`;
+    const invoiceStatusPromise = client.sql`SELECT
          SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) AS "paid",
          SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) AS "pending"
          FROM invoices`;
@@ -65,12 +86,13 @@ export async function fetchCardData() {
       customerCountPromise,
       invoiceStatusPromise,
     ]);
+    client.release(); // Important: release the connection! 
 
     const numberOfInvoices = Number(data[0].rows[0].count ?? '0');
     const numberOfCustomers = Number(data[1].rows[0].count ?? '0');
     const totalPaidInvoices = formatCurrency(data[2].rows[0].paid ?? '0');
     const totalPendingInvoices = formatCurrency(data[2].rows[0].pending ?? '0');
-
+    console.log('card data fetched:', numberOfCustomers, numberOfInvoices, totalPaidInvoices, totalPendingInvoices);
     return {
       numberOfCustomers,
       numberOfInvoices,
