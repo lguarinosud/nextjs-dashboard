@@ -10,6 +10,7 @@ import {
   Revenue,
 } from './definitions';
 import { formatCurrency } from './utils';
+import { LatestInvoice } from './definitions';
 
 export async function fetchRevenue() {
   try {
@@ -53,10 +54,16 @@ export async function fetchLatestInvoices() {
     //   ORDER BY invoices.date DESC
     //   LIMIT 5`;
 
-    const latestInvoices = data.rows.map((invoice) => ({
-      ...invoice,
+    // 
+    // Below, fix implemented as the above code was giving error when colling the function in latest-invoices.tsx 
+    const latestInvoices: LatestInvoice[] = data.rows.map((invoice) => ({
+      id: invoice.id,
       amount: formatCurrency(invoice.amount),
+      name: invoice.name,
+      image_url: invoice.image_url,
+      email: invoice.email,
     }));
+
     return latestInvoices;
   } catch (error) {
     console.error('Database Error:', error);
