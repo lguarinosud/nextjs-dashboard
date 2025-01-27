@@ -120,7 +120,8 @@ export async function fetchFilteredInvoices(
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
   try {
-    const invoices = await sql<InvoicesTable>`
+    const client = await db.connect();
+    const invoices = await client.sql`
       SELECT
         invoices.id,
         invoices.amount,
@@ -140,7 +141,7 @@ export async function fetchFilteredInvoices(
       ORDER BY invoices.date DESC
       LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
     `;
-
+    client.release(); // Important: release the connection!
     return invoices.rows;
   } catch (error) {
     console.error('Database Error:', error);
@@ -148,9 +149,11 @@ export async function fetchFilteredInvoices(
   }
 }
 
+
 export async function fetchInvoicesPages(query: string) {
+  const client = await db.connect();
   try {
-    const count = await sql`SELECT COUNT(*)
+    const count = await client.sql`SELECT COUNT(*)
     FROM invoices
     JOIN customers ON invoices.customer_id = customers.id
     WHERE
@@ -160,6 +163,7 @@ export async function fetchInvoicesPages(query: string) {
       invoices.date::text ILIKE ${`%${query}%`} OR
       invoices.status ILIKE ${`%${query}%`}
   `;
+    client.release(); // Important: release the connection!
 
     const totalPages = Math.ceil(Number(count.rows[0].count) / ITEMS_PER_PAGE);
     return totalPages;
@@ -171,7 +175,9 @@ export async function fetchInvoicesPages(query: string) {
 
 export async function fetchInvoiceById(id: string) {
   try {
-    const data = await sql<InvoiceForm>`
+    const client = await db.connect();
+
+    const data = await client.sql`
       SELECT
         invoices.id,
         invoices.customer_id,
@@ -180,6 +186,8 @@ export async function fetchInvoiceById(id: string) {
       FROM invoices
       WHERE invoices.id = ${id};
     `;
+    client.release(); // Important: release the connection!
+
 
     const invoice = data.rows.map((invoice) => ({
       ...invoice,
@@ -196,13 +204,16 @@ export async function fetchInvoiceById(id: string) {
 
 export async function fetchCustomers() {
   try {
-    const data = await sql<CustomerField>`
+    const client = await db.connect();
+
+    const data = await client.sql`
       SELECT
         id,
         name
       FROM customers
       ORDER BY name ASC
     `;
+    client.release(); // Important: release the connection!
 
     const customers = data.rows;
     return customers;
