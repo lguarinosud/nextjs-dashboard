@@ -2,6 +2,8 @@ import Form from '@/app/ui/invoices/edit-form';
 import Breadcrumbs from '@/app/ui/invoices/breadcrumbs';
 import { fetchInvoiceById, fetchCustomers } from '@/app/lib/data';
 import { CustomerField } from '@/app/lib/definitions';
+import { notFound } from 'next/navigation';
+
 
 export default async function Page(props: { params: Promise<{ id: string }> }) {
     // Await the `params` before destructuring
@@ -9,8 +11,8 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
     const id = params.id;
 
     // Fetch data in parallel
-    const [invoiceData, customersData] = await Promise.all([
-        fetchInvoiceById(id),
+    const [customersData] = await Promise.all([
+        //fetchInvoiceById(id),
         fetchCustomers(),
     ]);
 
@@ -20,7 +22,12 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
         name: customer.name,
     }));
 
+
     const invoice: any = await fetchInvoiceById(id);
+
+    if (!invoice) {
+        notFound();
+    }
 
     return (
         <main>
